@@ -1,0 +1,221 @@
+# Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Code Aurora Forum, Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+
+# on emmc mount the partition containing firmware
+# Changed partition layout and size, 20110528
+on emmc-fs
+# BEGIN: yongmin.jung@lge.com 2011.05.13
+# [i_prj/system/partition] execute e2fsck
+   mkdir /tombstones 0771 system system
+   wait /dev/block/mmcblk0p22
+   exec /system/bin/e2fsck -p /dev/block/mmcblk0p22
+
+   mount ext4 /dev/block/mmcblk0p22 /tombstones nosuid nodev barrier=1
+
+   mkdir /tombstones/modem 0771 system system
+   mkdir /tombstones/mdm 0771 system system
+   mkdir /tombstones/lpass 0771 system system
+
+   mkdir /firmware 0771 system system
+   wait /dev/block/mmcblk0p1
+# END: yongmin.jung@lge.com 2011.05.13
+
+   mount vfat /dev/block/mmcblk0p1 /firmware ro shortname=lower
+   exec /system/bin/sh /system/etc/init.qcom.modem_links.sh
+
+   write /sys/devices/i2c-0/0-0024/cyttsp_update_fw 1
+
+# yennie.kang@lge.com for AMI306
+# ---------------------------------------------------------
+on boot
+    chown compass system /dev/k3g_misc
+    chmod 0660 /dev/k3g_misc
+    chown compass system /dev/k3dh_acc_misc
+    chmod 0660 dev/k3dh_acc_misc
+    chown compass system /dev/ami306
+    chmod 0660 dev/ami306
+    chown compass system /dev/ami306daemon
+    chmod 0660 dev/ami306daemon
+    chown compass system /dev/ami306hal
+    chmod 0660 dev/ami306hal
+    mkdir /data/amit 0770 compass system
+    mkdir /data/gesture 0770 compass system
+    chown system system /sys/devices/virtual/input/lge_touch/keyguard
+    chown system system /sys/devices/virtual/input/lge_touch/ts_first_enable
+# ---------------------------------------------------------
+
+# LGE_CHANGE_S [i_atnt][HieednMenu] Add log service, jjh.jang@lge.com, 2011-08-19
+    mkdir /data/logger 0771 system system
+    chown system system /data/logger
+    chmod 0775 /data/logger
+# LGE_CHANGE_E [i_atnt][HieednMenu] Add log service, jjh.jang@lge.com, 2011-08-19
+service kickstart /system/bin/qcks l
+    user system
+    group system
+    oneshot
+    disabled
+
+# Start kickstart if csfb or svlte2a target
+on property:ro.baseband=csfb
+    wait /dev/ttyHSL1
+    mkdir /data/qcks 0770 system system
+    exec /system/bin/sh /system/etc/init.qcom.mdm_links.sh
+    start kickstart
+
+on property:ro.baseband=svlte2a
+    wait /dev/ttyHSL1
+    mkdir /data/qcks 0770 system system
+    exec /system/bin/sh /system/etc/init.qcom.mdm_links.sh
+    start kickstart
+
+
+service dcvsd0 /system/bin/dcvsd -c 0 -f /data/misc/dcvsd/dcvsd0.conf
+    user root
+    disabled
+
+service dcvsd1 /system/bin/dcvsd -c 1 -f /data/misc/dcvsd/dcvsd1.conf
+    user root
+    disabled
+
+service mpdecision /system/bin/mpdecision --no_sleep --avg_comp
+    user root
+    disabled
+
+#platform-bsp@lge.com
+service thermald /system/bin/thermald
+  user root
+  group root
+  disabled
+#service thermald /system/bin/thermald
+#    user root
+#    disabled
+
+service qrngd /system/bin/qrngd -f
+    user root
+
+# yennie.kang@lge.com for AMI306
+# ---------------------------------------------------------
+service ami304d /system/bin/ami304d
+    user compass
+    group system
+# ---------------------------------------------------------
+
+# keres
+service smpl /system/bin/busybox ash /system/etc/smpl_count.sh
+	oneshot
+# 
+
+on property:ro.baseband=svlte2a
+   setprop ro.config.ehrpd true
+   setprop ro.config.svlte1x true
+# LGE_CHANGE_S [i_atnt][HieednMenu] Add log service, jjh.jang@lge.com, 2011-08-19
+service logcat-main /system/bin/logcat -v time -b main -f /data/logger/main.log -n 4 -r 4096
+	disabled
+	oneshot
+
+on property:persist.service.main.enable=1
+	start logcat-main
+
+on property:persist.service.main.enable=0
+	stop logcat-main
+
+service logcat-system /system/bin/logcat -v time -b system -f /data/logger/system.log -n 4 -r 4096
+	disabled
+	oneshot
+
+on property:persist.service.system.enable=1
+	start logcat-system
+
+on property:persist.service.system.enable=0
+	stop logcat-system
+
+service logcat-radio /system/bin/logcat -v time -b radio -f /data/logger/radio.log -n 4 -r 4096
+	disabled
+	oneshot
+
+on property:persist.service.radio.enable=1
+	start logcat-radio
+
+on property:persist.service.radio.enable=0
+	stop logcat-radio
+
+service logcat-events /system/bin/logcat -v time -b events -f /data/logger/events.log -n 4 -r 4096
+	disabled
+	oneshot
+
+on property:persist.service.events.enable=1
+	start logcat-events
+
+on property:persist.service.events.enable=0
+	stop logcat-events
+# LGE_CHANGE_E [i_atnt][HieednMenu] Add log service, jjh.jang@lge.com, 2011-08-19
+#From  device/lge/lge_common/init.lgecommon.rc  #
+
+
+# This file Will be pasted after init.target.rc
+
+
+# At First Time Format for data & tomestones & caches
+on emmc-fmt
+# data partition wait
+    wait /dev/block/mmcblk0p28
+    exec /system/bin/sh /system/etc/format_first.sh
+
+# Factory Reset
+on property:ro.lge.factory_reset=format
+    exec echo "TaMeGlRoF_cIgAm" > /dev/block/mmcblk0p28 # Format Magic
+
+# last_kmsg Backup
+on early-boot
+    exec /system/bin/sh /system/etc/last_kmsg_backup.sh
+# LGE_DRM_PARTITION [ youngjun.yun.110610.
+# store DivX DRM information in the DRM partition
+on emmc-afterfmt
+    #mkdir /mm 0770 media system
+    mkdir /mm
+    wait /dev/block/mmcblk0p23
+    mount ext4 /dev/block/mmcblk0p23 /mm nosuid nodev barrier=1
+
+    mkdir /mm/dt01 0770 media system
+    mkdir /mm/dt01/ghd 0770 media system
+    mkdir /mm/dt01/rlf 0770 media system
+    mkdir /mm/dt01/ehd 0770 media system
+    
+    # double check the perms
+    chown media system /mm
+    chmod 0770 /mm
+    chown media system /mm/dt01
+    chmod 0770 /mm/dt01
+    chown media system /mm/dt01/ghd
+    chmod 0770 /mm/dt01/ghd
+    chown media system /mm/dt01/rlf
+    chmod 0770 /mm/dt01/rlf
+    chown media system /mm/dt01/ehd
+    chmod 0770 /mm/dt01/ehd
+# LGE_DRM_PARTITION ]

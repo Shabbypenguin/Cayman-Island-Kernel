@@ -1,0 +1,14 @@
+#
+# Copyright (c) 2011 Samsung Electronics Co., Ltd.
+# 		http://www.samsung.com/
+# Aakash Manik
+#	aakash.manik@samsung.com
+
+ comment "MHL driver Selection"
+
+ config VIDEO_MHL_V1
+ 	depends on ARCH_MSM8X60
+ 	default n
+ 	bool "MHL"
+ 	help
+ 		This is a MHL v1 driver customized for Qualcomm MSM8660 based chipsets.
