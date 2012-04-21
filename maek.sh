@@ -19,14 +19,9 @@ export KBUILD_BUILD_VERSION
 # Finally making the kernel
 make ARCH=arm CROSS_COMPILE=arm-eabi- -j$THREADS
 
-# These commands really only need to be run once
-#mkdir ./package
-#mkdir ./package/ramdisk_tmp
-#mkdir ./package/ramdisk_tmp/lib
-#mkdir ./package/ramdisk_tmp/lib/modules/
 
 # These move files to easier locations
-find -name '*.ko' -exec cp -av {} ./package/ramdisk_tmp/lib/modules/ \;
+#find -name '*.ko' -exec cp -av {} ./package/ramdisk_tmp/lib/modules/ \;
 cp ./arch/arm/boot/zImage ./package/
 
 # This part packs the img up :)
